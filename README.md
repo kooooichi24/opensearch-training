@@ -1,11 +1,5 @@
 # opensearch-training
 
-## TODO
-
-- create index and search query in local docker environment
-  - Docker
-  - OpenSearchClient.ts
-
 ## Step
 
 ```sh
