@@ -1,6 +1,5 @@
 import fs from "fs";
 import { Client, RequestParams } from "@opensearch-project/opensearch";
-import { RequestBody } from "@opensearch-project/opensearch/lib/Transport";
 
 export interface CallDocument {
   id: string;
