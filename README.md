@@ -78,3 +78,5 @@ $ curl -XGET https://localhost:9200/calls -u 'admin:admin' --insecure | jq .
 - [opensearchproject/opensearch](https://hub.docker.com/r/opensearchproject/opensearch)
 - [Why use OpenSearch with Docker?](https://opensearch.org/docs/1.3/opensearch/install/docker/)
 - [OpenSearch をローカル環境で Docker を利用して構築する](https://dev.classmethod.jp/articles/how-to-build-opensearch-with-docker/)
+- [opensearch-js/DEVELOPER_GUIDE.md](https://github.com/opensearch-project/opensearch-js/blob/2f840e54860419f76ef8354a0fe070403d437386/DEVELOPER_GUIDE.md#getting-started)
+- [documentation-website/\_clients/javascript/](https://github.com/opensearch-project/documentation-website/tree/main/_clients/javascript)
