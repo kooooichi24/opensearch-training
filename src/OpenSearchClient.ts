@@ -1,5 +1,7 @@
 import fs from "fs";
 import { Client, RequestParams } from "@opensearch-project/opensearch";
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
+import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
 
 export interface CallDocument {
   id: string;
@@ -25,15 +27,30 @@ export class OpenSearchClient implements IOpenSearchClient {
   private client: Client;
 
   constructor() {
-    this.client = new Client({
-      node: "https://admin:admin@localhost:9200",
-      ssl: {
-        ca: fs.readFileSync(this.CA_CERTS_PATH),
-      },
-    });
+    console.log("Stage: " + process.env.STAGE);
+
+    if (process.env.STAGE === "local") {
+      this.client = new Client({
+        node: "https://admin:admin@localhost:9200",
+        ssl: {
+          ca: fs.readFileSync(this.CA_CERTS_PATH),
+        },
+      });
+    } else {
+      this.client = new Client({
+        ...AwsSigv4Signer({
+          region: "ap-northeast-1",
+          getCredentials: () => {
+            const credentialsProvider = defaultProvider();
+            return credentialsProvider();
+          },
+        }),
+        node: "endpoint url",
+      });
+    }
   }
 
-  async search<T>(indexName: string, query: any): Promise<Record<string, any>> {
+  async search(indexName: string, query: any): Promise<Record<string, any>> {
     console.log(
       "Searching index: " + indexName,
       " with query: " + JSON.stringify(query)
