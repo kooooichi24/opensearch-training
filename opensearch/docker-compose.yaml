@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   opensearch-node1:
     build:
@@ -19,8 +19,6 @@ services:
       nofile:
         soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
         hard: 65536
-    volumes:
-      - opensearch-data1:/usr/share/opensearch/data
     ports:
       - 9200:9200
       - 9600:9600 # required for Performance Analyzer
@@ -45,8 +43,6 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-    volumes:
-      - opensearch-data2:/usr/share/opensearch/data
     networks:
       - opensearch-net
   opensearch-dashboards:
@@ -60,10 +56,6 @@ services:
       OPENSEARCH_HOSTS: '["https://opensearch-node1:9200","https://opensearch-node2:9200"]'
     networks:
       - opensearch-net
-
-volumes:
-  opensearch-data1:
-  opensearch-data2:
 
 networks:
   opensearch-net:

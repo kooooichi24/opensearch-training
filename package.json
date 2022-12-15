@@ -4,10 +4,11 @@
   "description": "## Step",
   "main": "index.js",
   "scripts": {
-    "start:local": "STAGE=local npm run build:live",
-    "start:dev": "STAGE=dev npm run build:live",
+    "start:local": "yarn setup:es:local && STAGE=local yarn build:live",
+    "start:dev": "STAGE=dev yarn build:live",
     "build": "tsc -p .",
-    "build:live": "nodemon --watch 'src/**/*.ts' --exec \"ts-node\" src/index.ts"
+    "build:live": "nodemon --watch 'src/**/*.ts' --exec \"ts-node\" src/index.ts",
+    "setup:es:local": "STAGE=local ts-node opensearch/setup/index.ts"
   },
   "repository": {
     "type": "git",

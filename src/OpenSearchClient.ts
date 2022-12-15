@@ -21,6 +21,16 @@ export interface IOpenSearchClient {
     options: BulkHelperOptions<TDocument>,
     reqOptions?: TransportRequestOptions
   ): Promise<void>;
+
+  // for local setup
+  indicesCreate<TRequestBody extends RequestBody = Record<string, any>>(
+    params?: RequestParams.IndicesCreate<TRequestBody>,
+    options?: TransportRequestOptions
+  ): Promise<void>;
+  indicesDelete(
+    params?: RequestParams.IndicesDelete,
+    options?: TransportRequestOptions
+  ): Promise<void>;
 }
 
 export class OpenSearchClient implements IOpenSearchClient {
@@ -78,5 +88,23 @@ export class OpenSearchClient implements IOpenSearchClient {
     console.log("bulk called");
 
     await this.client.helpers.bulk(options, reqOptions);
+  }
+
+  async indicesCreate<TRequestBody extends RequestBody = Record<string, any>>(
+    params?: RequestParams.IndicesCreate<TRequestBody> | undefined,
+    options?: TransportRequestOptions | undefined
+  ): Promise<void> {
+    console.log("indicesCreate called");
+
+    await this.client.indices.create(params, options);
+  }
+
+  async indicesDelete(
+    params?: RequestParams.IndicesDelete | undefined,
+    options?: TransportRequestOptions | undefined
+  ): Promise<void> {
+    console.log("indicesDelete called");
+
+    await this.client.indices.delete(params, options);
   }
 }
