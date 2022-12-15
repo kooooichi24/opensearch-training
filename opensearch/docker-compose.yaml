@@ -1,7 +1,9 @@
 version: '3'
 services:
   opensearch-node1:
-    image: opensearchproject/opensearch:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: opensearch-node1
     environment:
       - cluster.name=opensearch-cluster
@@ -25,7 +27,9 @@ services:
     networks:
       - opensearch-net
   opensearch-node2:
-    image: opensearchproject/opensearch:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: opensearch-node2
     environment:
       - cluster.name=opensearch-cluster
