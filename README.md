@@ -67,6 +67,15 @@ $ curl -XGET https://localhost:9200/calls -u 'admin:admin' --insecure | jq .
 - > For now, users can create a root-ca.pem file with contents from here or copy it from inside docker container /usr/share/opensearch/config/root-ca.pem). You can copy this exact piece in a root-ca.pem file anywhere on your local machine with -rw-r--r-- permissions and point that to the nodejs client. It should work.
 - [GitHub Issue](https://github.com/opensearch-project/OpenSearch/issues/1501#issuecomment-961463423)
 
+### Explicit mapping
+
+1. Access OpenSearch Dashboard
+
+   access `https://endpoint/` using your browser
+
+2. Access Dev Tools
+3. execute command. command [here](./opensearch/migration/)
+
 ## Reference
 
 - [opensearchproject/opensearch](https://hub.docker.com/r/opensearchproject/opensearch)
