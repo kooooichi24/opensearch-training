@@ -2,30 +2,24 @@ import fs from "fs";
 import { Client, RequestParams } from "@opensearch-project/opensearch";
 import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
-
-export interface CallDocument {
-  call_id: string;
-  title: string;
-  transcription: string;
-  customer: string;
-  phone_number: string;
-  participants: string[];
-  call_datetime: string;
-}
+import { BulkHelperOptions } from "@opensearch-project/opensearch/lib/Helpers";
+import {
+  RequestBody,
+  TransportRequestOptions,
+} from "@opensearch-project/opensearch/lib/Transport";
 
 export interface IOpenSearchClient {
-  search(
-    indexName: string,
-    query: RequestParams.Search
+  search<TRequestBody extends RequestBody = Record<string, any>>(
+    params?: RequestParams.Search<TRequestBody>,
+    options?: TransportRequestOptions
   ): Promise<Record<string, any>>;
-  create(indexName: string): Promise<Record<string, any>>;
-  addDocument(
-    indexName: string,
-    document: CallDocument
-  ): Promise<Record<string, any>>;
-  bulkAddDocuments(
-    indexName: string,
-    documents: CallDocument[]
+  index<TRequestBody extends RequestBody = Record<string, any>>(
+    params?: RequestParams.Index<TRequestBody>,
+    options?: TransportRequestOptions
+  ): Promise<void>;
+  bulk<TDocument = unknown>(
+    options: BulkHelperOptions<TDocument>,
+    reqOptions?: TransportRequestOptions
   ): Promise<void>;
 }
 
@@ -57,61 +51,32 @@ export class OpenSearchClient implements IOpenSearchClient {
     }
   }
 
-  async search(indexName: string, query: any): Promise<Record<string, any>> {
-    console.log(
-      "Searching index: " + indexName,
-      " with query: " + JSON.stringify(query)
-    );
-
-    const response = await this.client.search({
-      index: indexName,
-      body: query,
-    });
-    console.log("Response: " + JSON.stringify(response.body));
-
-    return response.body;
-  }
-
-  async create(indexName: string): Promise<Record<string, any>> {
-    console.log("Creating index: " + indexName);
-
-    const response = await this.client.indices.create({ index: indexName });
-    console.log("Response: " + JSON.stringify(response.body));
-
-    return response.body;
-  }
-
-  async addDocument(
-    indexName: string,
-    document: CallDocument
+  async search<TRequestBody extends RequestBody = Record<string, any>>(
+    params?: RequestParams.Search<TRequestBody>,
+    options?: TransportRequestOptions
   ): Promise<Record<string, any>> {
-    console.log("Adding document: " + JSON.stringify(document));
+    console.log("search called");
 
-    const response = await this.client.index({
-      id: document.call_id,
-      index: indexName,
-      body: document,
-      refresh: true,
-    });
-
-    console.log("Response: " + JSON.stringify(response.body));
+    const response = await this.client.search(params, options);
 
     return response.body;
   }
 
-  async bulkAddDocuments(
-    indexName: string,
-    documents: CallDocument[]
+  async index<TRequestBody extends RequestBody = Record<string, any>>(
+    params?: RequestParams.Index<TRequestBody> | undefined,
+    options?: TransportRequestOptions | undefined
   ): Promise<void> {
-    console.log("Adding documents: " + JSON.stringify(documents));
+    console.log("index called");
 
-    await this.client.helpers.bulk({
-      datasource: documents,
-      onDocument: (doc) => {
-        return {
-          index: { _index: indexName, _id: doc.call_id },
-        };
-      },
-    });
+    await this.client.index(params, options);
+  }
+
+  async bulk<TDocument = unknown>(
+    options: BulkHelperOptions<TDocument>,
+    reqOptions?: TransportRequestOptions
+  ): Promise<void> {
+    console.log("bulk called");
+
+    await this.client.helpers.bulk(options, reqOptions);
   }
 }
