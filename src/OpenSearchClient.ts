@@ -4,9 +4,13 @@ import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
 
 export interface CallDocument {
-  id: string;
+  call_id: string;
   title: string;
   transcription: string;
+  customer: string;
+  phone_number: string;
+  participants: string[];
+  call_datetime: string;
 }
 
 export interface IOpenSearchClient {
@@ -19,7 +23,10 @@ export interface IOpenSearchClient {
     indexName: string,
     document: CallDocument
   ): Promise<Record<string, any>>;
-  bulkAddDocuments(indexName: string, documents: CallDocument[]): Promise<void>;
+  bulkAddDocuments(
+    indexName: string,
+    documents: CallDocument[]
+  ): Promise<void>;
 }
 
 export class OpenSearchClient implements IOpenSearchClient {
@@ -81,7 +88,7 @@ export class OpenSearchClient implements IOpenSearchClient {
     console.log("Adding document: " + JSON.stringify(document));
 
     const response = await this.client.index({
-      id: document.id,
+      id: document.call_id,
       index: indexName,
       body: document,
       refresh: true,
@@ -102,7 +109,7 @@ export class OpenSearchClient implements IOpenSearchClient {
       datasource: documents,
       onDocument: (doc) => {
         return {
-          index: { _index: indexName, _id: doc.id },
+          index: { _index: indexName, _id: doc.call_id },
         };
       },
     });

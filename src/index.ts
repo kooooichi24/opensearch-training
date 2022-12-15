@@ -1,5 +1,5 @@
 import { CallDocument, OpenSearchClient } from "./OpenSearchClient";
-import { data } from "./documents.json";
+import { data } from "../opensearch/documents.json";
 
 const main = async (): Promise<void> => {
   const openSearchClient = new OpenSearchClient();
