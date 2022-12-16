@@ -1,0 +1,32 @@
+service: opensearch-training
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-northeast-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - es:ES*
+          Resource: 
+            - arn:aws:es:ap-northeast-1:744743450114:domain/test
+
+functions:
+  searchCalls:
+    handler: handler.searchCalls
+    events:
+      - http:
+          path: /api/v1/calls
+          method: GET
+  addCallDocument:
+    handler: handler.addCallDocument
+    events:
+      - http:
+          path: /api/v1/calls
+          method: POST
