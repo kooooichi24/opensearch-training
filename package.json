@@ -8,6 +8,8 @@
     "start:dev": "STAGE=dev yarn build:live",
     "build": "tsc -p .",
     "build:live": "nodemon --watch 'src/**/*.ts' --exec \"ts-node\" src/index.ts",
+    "deploy:dev": "STAGE=dev serverless deploy --verbose --aws-profile",
+    "remove:dev": "serverless remove --verbose --aws-profile",
     "setup:es-local": "STAGE=local ts-node opensearch/setup/index.ts",
     "deploy:es-local": "docker-compose -f ./opensearch/docker-compose.yaml up -d"
   },
@@ -22,8 +24,12 @@
   },
   "homepage": "https://github.com/kooooichi24/opensearch-training#readme",
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.109",
     "@types/node": "^18.11.13",
+    "esbuild": "^0.16.7",
     "nodemon": "^2.0.20",
+    "serverless": "^3.25.1",
+    "serverless-esbuild": "^1.34.0",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.4"
   },
