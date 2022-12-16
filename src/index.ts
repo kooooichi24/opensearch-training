@@ -1,7 +1,7 @@
 import { OpenSearchClient } from "./OpenSearchClient";
 import { data } from "../opensearch/documents.json";
 
-interface CallDocument {
+export interface CallDocument {
   call_id: string;
   title: string;
   transcription: string;
