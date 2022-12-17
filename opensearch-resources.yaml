@@ -167,8 +167,8 @@ Resources:
       RouteTableIds:
         - !Ref PrivateRouteTable1
       ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
-      VpcId: !Ref VPC
       VpcEndpointType: Gateway
+      VpcId: !Ref VPC
 
   #####################################
   # EC2
