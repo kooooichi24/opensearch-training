@@ -15,7 +15,13 @@ provider:
           Action:
             - es:ES*
           Resource: 
-            - arn:aws:es:ap-northeast-1:744743450114:domain/test
+            - arn:aws:es:ap-northeast-1:744743450114:domain/opensearch-training
+  vpc:
+    subnetIds:
+      - subnet-090bfef9969da7c18
+      - subnet-0f35817cff4732065
+    securityGroupIds:
+      - sg-0306324f35bfea072
 
 functions:
   searchCalls:

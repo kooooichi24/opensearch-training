@@ -56,7 +56,7 @@ export class OpenSearchClient implements IOpenSearchClient {
             return credentialsProvider();
           },
         }),
-        node: "https://search-test2-jshb4i4dbodxeopd2pogebadqy.ap-northeast-1.es.amazonaws.com",
+        node: "https://vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com",
       });
     }
   }
