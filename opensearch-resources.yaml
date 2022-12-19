@@ -12,15 +12,25 @@ Parameters:
     Type: String
     Default: 10.192.0.0/16
 
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
   PrivateSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
     Type: String
-    Default: 10.192.10.0/24
+    Default: 10.192.20.0/24
 
   PrivateSubnet2CIDR:
     Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
     Type: String
-    Default: 10.192.11.0/24
+    Default: 10.192.21.0/24
 
 Resources:
   #####################################
@@ -36,6 +46,70 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectName}-vpc
 
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-igw
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-public-subnet-1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: ap-northeast-1c
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-public-subnet-2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-public-route
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -47,18 +121,18 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectName}-private-subnet-1
 
-  PrivateRouteTable1:
+  PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub ${ProjectName}-private-routes-1
+          Value: !Sub ${ProjectName}-private-routes
 
   PrivateSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable1
+      RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet1
 
   PrivateSubnet2:
@@ -72,18 +146,10 @@ Resources:
         - Key: Name
           Value: !Sub ${ProjectName}-private-subnet-2
 
-  PrivateRouteTable2:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: !Sub ${ProjectName}-private-routes-2
-
   PrivateSubnet2RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable2
+      RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet2
 
   LambdaSecurityGroup:
@@ -95,6 +161,65 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-lambda-security-group
+
+  #####################################
+  # ALB
+  #####################################
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Name: !Sub ${ProjectName}-alb
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Type: application
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: ALBSecurityGroup
+      GroupDescription: "Security-Group for ALB"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          # CidrIp: !Ref VpcCIDR
+          CidrIp: 0.0.0.0/0
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ProjectName}-alb-tgroup
+      VpcId: !Ref VPC
+      Protocol: HTTP
+      Port: 80
+      HealthCheckPath: /
+      HealthCheckPort: traffic-port
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      HealthCheckIntervalSeconds: 30
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: "200"
+      Targets:
+        - Id: !Ref EC2Instance1
+        - Id: !Ref EC2Instance2
 
   #####################################
   # SSM for EC2 in private subnet
@@ -112,7 +237,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-vpc-endpoint-security-group
-  
+
   EndpointSSM:
     Type: AWS::EC2::VPCEndpoint
     Properties:
@@ -122,6 +247,7 @@ Resources:
       ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
       SubnetIds:
         - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
       VpcEndpointType: Interface
       VpcId: !Ref VPC
 
@@ -134,6 +260,7 @@ Resources:
       ServiceName: !Sub com.amazonaws.${AWS::Region}.ssmmessages
       SubnetIds:
         - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
       VpcEndpointType: Interface
       VpcId: !Ref VPC
 
@@ -146,6 +273,7 @@ Resources:
       ServiceName: !Sub com.amazonaws.${AWS::Region}.ec2messages
       SubnetIds:
         - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
       VpcEndpointType: Interface
       VpcId: !Ref VPC
 
@@ -158,14 +286,14 @@ Resources:
         Version: 2012-10-17
         Statement:
           - Effect: Allow
-            Principal: '*'
+            Principal: "*"
             Action:
               - s3:GetObject
             Resource:
               - !Sub "arn:aws:s3:::amazonlinux.${AWS::Region}.amazonaws.com/*"
               - !Sub "arn:aws:s3:::amazonlinux-2-repos-${AWS::Region}/*"
       RouteTableIds:
-        - !Ref PrivateRouteTable1
+        - !Ref PrivateRouteTable
       ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
       VpcEndpointType: Gateway
       VpcId: !Ref VPC
@@ -175,9 +303,9 @@ Resources:
   #####################################
   EC2KeyPair:
     Type: AWS::EC2::KeyPair
-    Properties: 
+    Properties:
       KeyName: EC2KeyPair
-      Tags: 
+      Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-ec2-keypair
 
@@ -206,22 +334,39 @@ Resources:
         - Ref: EC2IAMRole
       InstanceProfileName: !Sub ${ProjectName}-ec2-instance-profile
 
-  EC2Instance: 
+  EC2Instance1:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: ami-072bfb8ae2c884cc4
       InstanceType: t2.micro
       IamInstanceProfile: !Ref EC2InstanceProfile
       KeyName: !Ref EC2KeyPair
-      NetworkInterfaces: 
+      NetworkInterfaces:
         - AssociatePublicIpAddress: false
           DeviceIndex: 0
-          GroupSet: 
+          GroupSet:
             - !Ref EC2SecurityGroup
           SubnetId: !Ref PrivateSubnet1
-      Tags: 
+      Tags:
         - Key: Name
-          Value: !Sub ${ProjectName}-ec2-instance
+          Value: !Sub ${ProjectName}-ec2-instance-1
+  
+  EC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-072bfb8ae2c884cc4
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      KeyName: !Ref EC2KeyPair
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeviceIndex: 0
+          GroupSet:
+            - !Ref EC2SecurityGroup
+          SubnetId: !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-ec2-instance-2
 
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -229,6 +374,12 @@ Resources:
       GroupName: EC2SecurityGroup
       GroupDescription: "Security-Group for EC2 instance"
       VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-ec2-security-group
@@ -277,7 +428,6 @@ Resources:
         Enabled: true
       AdvancedOptions:
         rest.action.multi.allow_explicit_index: "true"
-        override_main_response_version: "true"
         indices.fielddata.cache.size: "20"
         indices.query.bool.max_clause_count: "1024"
       AdvancedSecurityOptions:
@@ -285,14 +435,14 @@ Resources:
         InternalUserDatabaseEnabled: true
         MasterUserOptions:
           MasterUserName: MasterUser
-          MasterUserPassword: MasterUser01!
+          MasterUserPassword: MasterUser01#
       AccessPolicies:
         Version: "2012-10-17"
         Statement:
           - Effect: "Allow"
             Principal:
               AWS: "*"
-            Action: "es:ES*"
+            Action: "es:*"
             Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}/*"
       VPCOptions:
         SubnetIds:
@@ -308,7 +458,11 @@ Resources:
       GroupDescription: "Security-Group for OpenSearch"
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+        - SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+        - SourceSecurityGroupId: !Ref EC2SecurityGroup
           IpProtocol: tcp
           FromPort: 443
           ToPort: 443
