@@ -32,6 +32,11 @@ Parameters:
     Type: String
     Default: 10.192.21.0/24
 
+  CertificateArn:
+    Description: Please enter the ARN of the ACM certificate for the ALB
+    Type: String
+    Default: arn:aws:acm:ap-northeast-1:744743450114:certificate/c38eec0d-82cf-4db6-908a-05df83b41b82
+
 Resources:
   #####################################
   # Network
@@ -186,9 +191,8 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          # CidrIp: !Ref VpcCIDR
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
 
   ALBListener:
@@ -198,8 +202,10 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref ALBTargetGroup
       LoadBalancerArn: !Ref ALB
-      Port: 80
-      Protocol: HTTP
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
 
   ALBTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -208,7 +214,7 @@ Resources:
       VpcId: !Ref VPC
       Protocol: HTTP
       Port: 80
-      HealthCheckPath: /
+      HealthCheckPath: /_dashboards
       HealthCheckPort: traffic-port
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
@@ -216,7 +222,7 @@ Resources:
       HealthCheckIntervalSeconds: 30
       UnhealthyThresholdCount: 2
       Matcher:
-        HttpCode: "200"
+        HttpCode: "302"
       Targets:
         - Id: !Ref EC2Instance1
         - Id: !Ref EC2Instance2
@@ -350,7 +356,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-ec2-instance-1
-  
+
   EC2Instance2:
     Type: AWS::EC2::Instance
     Properties:
@@ -379,7 +385,6 @@ Resources:
           FromPort: 80
           ToPort: 80
           SourceSecurityGroupId: !Ref ALBSecurityGroup
-          
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-ec2-security-group
