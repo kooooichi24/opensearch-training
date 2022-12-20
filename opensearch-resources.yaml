@@ -353,6 +353,38 @@ Resources:
           GroupSet:
             - !Ref EC2SecurityGroup
           SubnetId: !Ref PrivateSubnet1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          amazon-linux-extras install nginx1
+          touch /etc/nginx/conf.d/default.conf
+          cat << 'EOF' > /etc/nginx/conf.d/default.conf
+          server {
+              listen       80;
+              listen       [::]:80;
+              server_name  $host;
+              rewrite ^/$ https://$host/_dashboards redirect;
+              # The resolver parameter varies depending on the configuration of the VPC; the DNS resolver is placed at the base IP of the primary CIDR block plus 2. For example, if you create a VPC with CIDR block 10.0.0.0/24, the DNS resolver will be located at 10.0.0.2.
+              resolver 10.192.0.2 ipv6=off valid=5s;
+              set $domain_endpoint vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com;
+
+              location ^~ /_dashboards {
+                  proxy_pass https://$domain_endpoint;
+                  proxy_redirect https://$domain_endpoint https://$host;
+
+                  # Update cookie domain and path
+                  proxy_cookie_domain $domain_endpoint $host;
+                  proxy_cookie_path ~*^/$ /_dashboards/;
+
+                  # Response buffer settings
+                  proxy_buffer_size 128k;
+                  proxy_buffers 4 256k;
+                  proxy_busy_buffers_size 256k;
+              }
+          }
+          EOF
+          systemctl start nginx.service
+
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-ec2-instance-1
@@ -370,6 +402,37 @@ Resources:
           GroupSet:
             - !Ref EC2SecurityGroup
           SubnetId: !Ref PrivateSubnet2
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          amazon-linux-extras install nginx1
+          touch /etc/nginx/conf.d/default.conf
+          cat << 'EOF' > /etc/nginx/conf.d/default.conf
+          server {
+              listen       80;
+              listen       [::]:80;
+              server_name  $host;
+              rewrite ^/$ https://$host/_dashboards redirect;
+              # The resolver parameter varies depending on the configuration of the VPC; the DNS resolver is placed at the base IP of the primary CIDR block plus 2. For example, if you create a VPC with CIDR block 10.0.0.0/24, the DNS resolver will be located at 10.0.0.2.
+              resolver 10.192.0.2 ipv6=off valid=5s;
+              set $domain_endpoint vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com;
+
+              location ^~ /_dashboards {
+                  proxy_pass https://$domain_endpoint;
+                  proxy_redirect https://$domain_endpoint https://$host;
+
+                  # Update cookie domain and path
+                  proxy_cookie_domain $domain_endpoint $host;
+                  proxy_cookie_path ~*^/$ /_dashboards/;
+
+                  # Response buffer settings
+                  proxy_buffer_size 128k;
+                  proxy_buffers 4 256k;
+                  proxy_busy_buffers_size 256k;
+              }
+          }
+          EOF
+          systemctl start nginx.service
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-ec2-instance-2
