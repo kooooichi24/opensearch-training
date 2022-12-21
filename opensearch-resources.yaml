@@ -1,7 +1,190 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "for OpenSearch Resources"
 
+Parameters:
+  ProjectName:
+    Description: A project name that is prefixed to resource names
+    Type: String
+    Default: opensearch-test-cfn
+
 Resources:
+  #####################################
+  # Cognito
+  #####################################
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailMessage: "Your username is {username} and temporary password is {####}."
+          EmailSubject: "Your temporary password"
+          SMSMessage: "Your username is {username} and temporary password is {####}."
+      AutoVerifiedAttributes:
+        - email
+      DeviceConfiguration:
+        ChallengeRequiredOnNewDevice: false
+        DeviceOnlyRememberedOnUserPrompt: false
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      MfaConfiguration: "ON"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 1
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+      UserPoolName: !Sub ${ProjectName}-user-pool
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: true
+      UserPoolAddOns:
+        AdvancedSecurityMode: AUDIT
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub ${ProjectName}
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      AccessTokenValidity: 60 # 1 hour
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - phone
+        - profile
+      AuthSessionValidity: 3 # 3 minutes
+      CallbackURLs:
+        # - !Sub https://${OpenSearchServiceDomain.DomainEndpoint}/_dashboards/app/home
+        - https://search-opensearch-test-cfn-5g6j2vmp3rs4674ezrsu4pbmxa.ap-northeast-1.es.amazonaws.com/_dashboards/app/home
+      ClientName: !Sub ${ProjectName}-user-pool-client
+      EnableTokenRevocation: true
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: true
+      IdTokenValidity: 60 # 1 hour
+      LogoutURLs:
+        # - !Sub https://${OpenSearchServiceDomain.DomainEndpoint}/_dashboards/app/home
+        - https://search-opensearch-test-cfn-5g6j2vmp3rs4674ezrsu4pbmxa.ap-northeast-1.es.amazonaws.com/_dashboards/app/home
+      PreventUserExistenceErrors: ENABLED
+      RefreshTokenValidity: 30 # 30 days
+      SupportedIdentityProviders:
+        - COGNITO
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowClassicFlow: false
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref CognitoUserPoolClient
+          ProviderName: !Sub cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}
+      DeveloperProviderName: !Sub ${ProjectName}-developer-provider
+      IdentityPoolName: !Sub ${ProjectName}-identity-pool
+
+  CognitoIdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: !GetAtt IAMRoleForCognitoAuthenticated.Arn
+        unauthenticated: !GetAtt IAMRoleForCognitoUnauthenticated.Arn
+
+  IAMRoleCognitoAccessForAmazonOpenSearch:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ProjectName}-cognito-access-for-amazon-opensearch-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: es.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonOpenSearchServiceCognitoAccess
+
+  IAMRoleForCognitoUnauthenticated:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ProjectName}-cognito-unauthenticated-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+      Policies:
+        - PolicyName: !Sub ${ProjectName}-cognito-unauthenticated-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "mobileanalytics:PutEvents"
+                  - "cognito-sync:*"
+                Resource: "*"
+
+  IAMRoleForCognitoAuthenticated:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ProjectName}-cognito-authenticated-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+      Policies:
+        - PolicyName: !Sub ${ProjectName}-cognito-authenticated-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "mobileanalytics:PutEvents"
+                  - "cognito-sync:*"
+                  - "cognito-identity:*"
+                Resource: "*"
+
   OpenSearchServiceDomain:
     Type: AWS::OpenSearchService::Domain
     Properties:
@@ -16,8 +199,11 @@ Resources:
         ZoneAwarenessConfig:
           AvailabilityZoneCount: 2
       CognitoOptions:
-        Enabled: false
-      DomainName: "test"
+        Enabled: true
+        IdentityPoolId: !Ref CognitoIdentityPool
+        RoleArn: !GetAtt IAMRoleCognitoAccessForAmazonOpenSearch.Arn
+        UserPoolId: !Ref CognitoUserPool
+      DomainName: !Sub ${ProjectName}
       DomainEndpointOptions:
         CustomEndpointEnabled: false
         EnforceHTTPS: true
@@ -43,15 +229,13 @@ Resources:
         Enabled: true
       AdvancedOptions:
         rest.action.multi.allow_explicit_index: "true"
-        override_main_response_version: "true"
         indices.fielddata.cache.size: "20"
         indices.query.bool.max_clause_count: "1024"
       AdvancedSecurityOptions:
         Enabled: true
-        InternalUserDatabaseEnabled: true
+        InternalUserDatabaseEnabled: false
         MasterUserOptions:
-          MasterUserName: MasterUser
-          MasterUserPassword: MasterUser01!
+          MasterUserARN: !GetAtt IAMRoleForCognitoAuthenticated.Arn
       AccessPolicies:
         Version: "2012-10-17"
         Statement:
@@ -59,4 +243,9 @@ Resources:
             Principal:
               AWS: "*"
             Action: "es:ES*"
-            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/test/*"
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}/*"
+          - Effect: "Allow"
+            Principal:
+              AWS: !GetAtt IAMRoleForCognitoAuthenticated.Arn
+            Action: "es:ESHttp*"
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}/*"
