@@ -283,27 +283,6 @@ Resources:
       VpcEndpointType: Interface
       VpcId: !Ref VPC
 
-  # ec2 in private subnet can install packages from amazon linux repository.
-  # not access internet.
-  EndpointS3:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal: "*"
-            Action:
-              - s3:GetObject
-            Resource:
-              - !Sub "arn:aws:s3:::amazonlinux.${AWS::Region}.amazonaws.com/*"
-              - !Sub "arn:aws:s3:::amazonlinux-2-repos-${AWS::Region}/*"
-      RouteTableIds:
-        - !Ref PrivateRouteTable
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
-      VpcEndpointType: Gateway
-      VpcId: !Ref VPC
-
   #####################################
   # EC2
   #####################################
@@ -348,11 +327,11 @@ Resources:
       IamInstanceProfile: !Ref EC2InstanceProfile
       KeyName: !Ref EC2KeyPair
       NetworkInterfaces:
-        - AssociatePublicIpAddress: false
+        - AssociatePublicIpAddress: true
           DeviceIndex: 0
           GroupSet:
             - !Ref EC2SecurityGroup
-          SubnetId: !Ref PrivateSubnet1
+          SubnetId: !Ref PublicSubnet1
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -374,6 +353,8 @@ Resources:
                   proxy_pass https://$domain_endpoint;
                   # Handle redirects to Cognito
                   proxy_redirect https://$cognito_host https://$host;
+                  # Handle redirects to Dashboards
+                  proxy_redirect https://$domain_endpoint https://$host;
                   # Update cookie domain and path
                   proxy_cookie_domain $domain_endpoint $host;
                   proxy_cookie_path ~*^/$ /_dashboards/;
@@ -384,7 +365,7 @@ Resources:
                   proxy_busy_buffers_size 256k;
               }
 
-              location ~ \/(login|sign|fav|forgot|change|saml|oauth2) {
+              location ~ \/(log|mfa|sign|fav|forgot|change|saml|oauth2) {
                   # Forward requests to Cognito
                   proxy_pass https://$cognito_host;
                   # Handle redirects to Dashboards
@@ -410,11 +391,11 @@ Resources:
       IamInstanceProfile: !Ref EC2InstanceProfile
       KeyName: !Ref EC2KeyPair
       NetworkInterfaces:
-        - AssociatePublicIpAddress: false
+        - AssociatePublicIpAddress: true
           DeviceIndex: 0
           GroupSet:
             - !Ref EC2SecurityGroup
-          SubnetId: !Ref PrivateSubnet2
+          SubnetId: !Ref PublicSubnet2
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -434,6 +415,8 @@ Resources:
               location ^~ /_dashboards {
                   # Forward requests to Dashboards
                   proxy_pass https://$domain_endpoint;
+                  # Handle redirects to Dashboards
+                  proxy_redirect https://$domain_endpoint https://$host;
                   # Handle redirects to Cognito
                   proxy_redirect https://$cognito_host https://$host;
                   # Update cookie domain and path
@@ -446,7 +429,7 @@ Resources:
                   proxy_busy_buffers_size 256k;
               }
 
-              location ~ \/(login|sign|fav|forgot|change|saml|oauth2) {
+              location ~ \/(log|mfa|sign|fav|forgot|change|saml|oauth2) {
                   # Forward requests to Cognito
                   proxy_pass https://$cognito_host;
                   # Handle redirects to Dashboards
@@ -545,8 +528,8 @@ Resources:
         - profile
       AuthSessionValidity: 3 # 3 minutes
       CallbackURLs:
-        # - https://vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com/_dashboards/app/home
-        - https://opensearch-test.fu-ru.link/_dashboards/app/home/
+        - https://vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com/_dashboards/app/home
+        # - https://opensearch-test.fu-ru.link/_dashboards/app/home/
       ClientName: !Sub ${ProjectName}-user-pool-client
       EnableTokenRevocation: true
       ExplicitAuthFlows:
@@ -556,8 +539,8 @@ Resources:
       GenerateSecret: true
       IdTokenValidity: 60 # 1 hour
       LogoutURLs:
-        # - https://vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com/_dashboards/app/home
-        - https://opensearch-test.fu-ru.link/_dashboards/app/home/
+        - https://vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com/_dashboards/app/home
+        # - https://opensearch-test.fu-ru.link/_dashboards/app/home/
       PreventUserExistenceErrors: ENABLED
       RefreshTokenValidity: 30 # 30 days
       SupportedIdentityProviders:
