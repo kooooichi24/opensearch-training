@@ -12,6 +12,11 @@ Parameters:
     Type: String
     Default: 10.192.0.0/16
 
+  ResolverCIDRForReverseProxy:
+    Description: The resolver parameter varies depending on the configuration of the VPC; the DNS resolver is placed at the base IP of the primary CIDR block plus 2. For example, if you create a VPC with CIDR block 10.0.0.0/24, the DNS resolver will be located at 10.0.0.2.
+    Type: String
+    Default: 10.192.0.2
+
   PublicSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
     Type: String
@@ -333,7 +338,7 @@ Resources:
             - !Ref EC2SecurityGroup
           SubnetId: !Ref PublicSubnet1
       UserData:
-        Fn::Base64: !Sub 
+        Fn::Base64: !Sub
           - |
             #!/bin/bash
             amazon-linux-extras install nginx1
@@ -344,11 +349,10 @@ Resources:
                 listen       [::]:80;
                 server_name  $host;
                 rewrite ^/$ https://$host/_dashboards redirect;
-                # The resolver parameter varies depending on the configuration of the VPC; the DNS resolver is placed at the base IP of the primary CIDR block plus 2. For example, if you create a VPC with CIDR block 10.0.0.0/24, the DNS resolver will be located at 10.0.0.2.
-                resolver 10.192.0.2 ipv6=off valid=5s;
+                resolver ${ResolverCIDR} ipv6=off valid=5s;
                 set $domain_endpoint ${OpenSearchServiceDomainEndpoint};
                 set $cognito_host ${CognitoDomainLogicalId}.auth.ap-northeast-1.amazoncognito.com;
-  
+
                 location ^~ /_dashboards {
                     # Forward requests to Dashboards
                     proxy_pass https://$domain_endpoint;
@@ -359,13 +363,13 @@ Resources:
                     # Update cookie domain and path
                     proxy_cookie_domain $domain_endpoint $host;
                     proxy_cookie_path ~*^/$ /_dashboards/;
-  
+
                     # Response buffer settings
                     proxy_buffer_size 128k;
                     proxy_buffers 4 256k;
                     proxy_busy_buffers_size 256k;
                 }
-  
+
                 location ~ \/(log|mfa|sign|fav|forgot|change|saml|oauth2) {
                     # Forward requests to Cognito
                     proxy_pass https://$cognito_host;
@@ -373,7 +377,7 @@ Resources:
                     proxy_redirect https://$domain_endpoint https://$host;
                     # Handle redirects to Cognito
                     proxy_redirect https://$cognito_host https://$host;
-  
+
                     # Update cookie domain
                     proxy_cookie_domain $cognito_host $host;
                 }
@@ -381,8 +385,9 @@ Resources:
             EOF
             systemctl start nginx.service
           - {
+              ResolverCIDR: !Ref ResolverCIDRForReverseProxy,
               OpenSearchServiceDomainEndpoint: !GetAtt OpenSearchServiceDomain.DomainEndpoint,
-              CognitoDomainLogicalId: !Ref CognitoUserPoolDomain
+              CognitoDomainLogicalId: !Ref CognitoUserPoolDomain,
             }
       Tags:
         - Key: Name
@@ -402,7 +407,7 @@ Resources:
             - !Ref EC2SecurityGroup
           SubnetId: !Ref PublicSubnet2
       UserData:
-        Fn::Base64: !Sub 
+        Fn::Base64: !Sub
           - |
             #!/bin/bash
             amazon-linux-extras install nginx1
@@ -413,8 +418,7 @@ Resources:
                 listen       [::]:80;
                 server_name  $host;
                 rewrite ^/$ https://$host/_dashboards redirect;
-                # The resolver parameter varies depending on the configuration of the VPC; the DNS resolver is placed at the base IP of the primary CIDR block plus 2. For example, if you create a VPC with CIDR block 10.0.0.0/24, the DNS resolver will be located at 10.0.0.2.
-                resolver 10.192.0.2 ipv6=off valid=5s;
+                resolver ${ResolverCIDR} ipv6=off valid=5s;
                 set $domain_endpoint ${OpenSearchServiceDomainEndpoint};
                 set $cognito_host ${CognitoDomainLogicalId}.auth.ap-northeast-1.amazoncognito.com;
 
@@ -450,8 +454,9 @@ Resources:
             EOF
             systemctl start nginx.service
           - {
+              ResolverCIDR: !Ref ResolverCIDRForReverseProxy,
               OpenSearchServiceDomainEndpoint: !GetAtt OpenSearchServiceDomain.DomainEndpoint,
-              CognitoDomainLogicalId: !Ref CognitoUserPoolDomain
+              CognitoDomainLogicalId: !Ref CognitoUserPoolDomain,
             }
       Tags:
         - Key: Name
