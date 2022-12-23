@@ -718,7 +718,7 @@ Resources:
         Statement:
           - Effect: "Allow"
             Principal:
-              AWS: "*"
+              AWS: "arn:aws:iam::744743450114:role/opensearch-training-dev-ap-northeast-1-lambdaRole"
             Action: "es:ES*"
             Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}/*"
           - Effect: "Allow"
