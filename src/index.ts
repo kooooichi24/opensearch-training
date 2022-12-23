@@ -8,7 +8,6 @@ export interface CallDocument {
   customer: string;
   phone_number: string;
   participants: string[];
-  call_datetime: string;
 }
 
 const main = async (): Promise<void> => {

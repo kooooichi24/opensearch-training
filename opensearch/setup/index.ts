@@ -12,6 +12,9 @@ const setup = async (): Promise<void> => {
   // create index
   const mappings = {
     properties: {
+      call_id: {
+        type: "text",
+      },
       title: {
         type: "text",
       },
@@ -26,9 +29,6 @@ const setup = async (): Promise<void> => {
       },
       participants: {
         type: "text",
-      },
-      call_datetime: {
-        type: "date",
       },
     },
   };

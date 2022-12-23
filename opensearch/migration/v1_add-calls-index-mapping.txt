@@ -19,10 +19,6 @@ PUT calls
       },
       "participants": {
         "type": "text"
-      },
-      "call_datetime": {
-        "type": "date",
-        "format": "strict_date_hour_minute_second"
       }
     }
   }
