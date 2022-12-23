@@ -2,6 +2,9 @@ PUT calls
 {
   "mappings": {
     "properties": {
+      "call_id": {
+        "type": "text"
+      },
       "title": {
         "type": "text"
       },
@@ -18,7 +21,8 @@ PUT calls
         "type": "text"
       },
       "call_datetime": {
-        "type": "date"
+        "type": "date",
+        "format": "strict_date_hour_minute_second"
       }
     }
   }

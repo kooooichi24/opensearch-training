@@ -78,7 +78,8 @@ export class OpenSearchClient implements IOpenSearchClient {
   ): Promise<void> {
     console.log("index called");
 
-    await this.client.index(params, options);
+    const result = await this.client.index(params, options);
+    console.log("result: ", result);
   }
 
   async bulk<TDocument = unknown>(
@@ -87,7 +88,8 @@ export class OpenSearchClient implements IOpenSearchClient {
   ): Promise<void> {
     console.log("bulk called");
 
-    await this.client.helpers.bulk(options, reqOptions);
+    const result = await this.client.helpers.bulk(options, reqOptions);
+    console.log("result: ", result);
   }
 
   async indicesCreate<TRequestBody extends RequestBody = Record<string, any>>(
