@@ -22,6 +22,23 @@ $ yarn start:local
 2. Access Dev Tools
 3. execute command. command [here](./opensearch/migration/)
 
+### Enable Logs
+
+#### Application logs
+
+Only CFn, no additional steps are required.
+
+#### Search slow logs & index slow logs
+
+The threshold for slow logs was determined at the time of explicit indexing.
+Explicit indexing file is [here](./opensearch/migration/v1_add-calls-index.txt).
+
+Thresholds were taken from [this document](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-slowlog.html).
+
+#### Audit logs
+
+[Turn on audit logs in OpenSearch Dashboards](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/audit-logs.html#audit-log-enabling-api:~:text=Step%202%3A%20Turn%20on%20audit%20logs%20in%20OpenSearch%20Dashboards)
+
 ## Reference
 
 - [opensearchproject/opensearch](https://hub.docker.com/r/opensearchproject/opensearch)
