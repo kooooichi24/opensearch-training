@@ -1,0 +1,65 @@
+# Must to be 'setting/index/indexing/slowlog/source = 0'.
+# Source properties were excluded from log output because the request body contains personal information such as transcripts.
+
+PUT calls
+{
+  "mappings": {
+    "properties": {
+      "call_id": {
+        "type": "text"
+      },
+      "title": {
+        "type": "text"
+      },
+      "transcription": {
+        "type": "text"
+      },
+      "customer": {
+        "type": "text"
+      },
+      "phone_number": {
+        "type": "keyword"
+      },
+      "participants": {
+        "type": "text"
+      }
+    }
+  },
+  "settings": {
+    "index": {
+      "search": {
+        "slowlog": {
+          "threshold": {
+            "query": {
+              "warn": "10s",
+              "info": "5s",
+              "debug": "2s",
+              "trace": "500ms"
+            },
+            "fetch": {
+              "warn": "1s",
+              "info": "800ms",
+              "debug": "500ms",
+              "trace": "200ms"
+            }
+          },
+          "level": "INFO"
+        }
+      },
+      "indexing": {
+        "slowlog": {
+          "threshold": {
+            "index": {
+              "warn": "10s",
+              "info": "5s",
+              "debug": "2s",
+              "trace": "500ms"
+            }
+          },
+          "source": "0",
+          "level": "INFO"
+        }
+      }
+    }
+  }
+}

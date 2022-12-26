@@ -697,11 +697,17 @@ Resources:
         KmsKeyId: "alias/aws/es"
       LogPublishingOptions:
         ES_APPLICATION_LOGS:
-          Enabled: false
+          Enabled: true
+          CloudWatchLogsLogGroupArn: !GetAtt LogGroupForApplicationLogs.Arn
         SEARCH_SLOW_LOGS:
-          Enabled: false
+          Enabled: true
+          CloudWatchLogsLogGroupArn: !GetAtt LogGroupForSearchLogs.Arn
         INDEX_SLOW_LOGS:
-          Enabled: false
+          Enabled: true
+          CloudWatchLogsLogGroupArn: !GetAtt LogGroupForIndexLogs.Arn
+        AUDIT_LOGS:
+          Enabled: true
+          CloudWatchLogsLogGroupArn: !GetAtt LogGroupForAuditLogs.Arn
       NodeToNodeEncryptionOptions:
         Enabled: true
       AdvancedOptions:
@@ -751,3 +757,63 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-opensearch-security-group
+
+  LogGroupForSearchLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/OpenSearchService/domains/${ProjectName}/search-logs
+      RetentionInDays: 30
+
+  LogGroupForApplicationLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/OpenSearchService/domains/${ProjectName}/application-logs
+      RetentionInDays: 30
+
+  LogGroupForIndexLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/OpenSearchService/domains/${ProjectName}/index-logs
+      RetentionInDays: 30
+
+  LogGroupForAuditLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/OpenSearchService/domains/${ProjectName}/audit-logs
+      RetentionInDays: 30
+
+  OpenSearchLogPolicy:
+    Type: AWS::Logs::ResourcePolicy
+    Properties:
+      PolicyName: !Sub ${ProjectName}-opensearch-log-policy
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "${ProjectName}-opensearch-log-policy",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "es.amazonaws.com"
+              },
+              "Action": [
+                "logs:PutLogEvents",
+                "logs:CreateLogStream"
+              ],
+              "Resource": [
+                "${LogGroupForSearchLogs.Arn}",
+                "${LogGroupForApplicationLogs.Arn}",
+                "${LogGroupForIndexLogs.Arn}",
+                "${LogGroupForAuditLogs.Arn}"
+              ],
+              "Condition": {
+                "StringEquals": {
+                    "aws:SourceAccount": "${AWS::AccountId}"
+                },
+                "ArnLike": {
+                    "aws:SourceArn": "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}"
+                }
+              }
+            }
+          ]
+        }
