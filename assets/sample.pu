@@ -1,0 +1,43 @@
+@startuml
+
+title Detail flow of access to OpenSearch Dashboards using Cognito.
+
+autonumber
+actor Administrators
+participant ALB
+participant "EC2 Instance \n Reverse Proxy" as EC2
+participant "OpenSearch \n Dashboards" as Dashboards
+participant Cognito
+
+Administrators -> ALB : https://$host/_dashboards
+ALB -> EC2 : Route to a target EC2 instance
+EC2 -> Dashboards : Proxy to https://$domain_endpoint/_dashboards
+Dashboards -> Cognito : authorization request
+Cognito -> Dashboards : authorization response
+Dashboards -> EC2 : Location: https://$cognito_host/login
+EC2 -> ALB : Replace response location header $cognito_host with $host. \n Location: https://$host/login
+ALB -> Administrators : Redirect to https://$host/login
+
+Administrators -> ALB : https://$host/login
+ALB -> EC2 : Route to a target EC2 instance
+EC2 -> Cognito : Proxy to https://$cognito_host/login
+Cognito -> EC2 : Login page
+EC2 -> ALB : Login page
+ALB -> Administrators : Login page
+
+Administrators -> ALB : ID/Password to https://$host/login
+ALB -> EC2 : Route to a target EC2 instance
+EC2 -> Cognito : Proxy to https://$cognito_host/login with ID/Password
+Cognito -> EC2 : Code with redirect_uri: https://$domain_endpoint/_dashboards
+EC2 -> ALB : Replace response location header $domain_endpoint with $host. \n Redirect to https://$host/_dashboards?code=xxx
+ALB -> Administrators : Code
+
+Administrators -> ALB : https://$host/_dashboards?code=xxx
+ALB -> EC2 : Route to a target EC2 instance
+EC2 -> Dashboards : Proxy to https://$domain_endpoint/_dashboards?code=xxx
+Dashboards -> Cognito : Token Request
+Cognito -> Dashboards : Token Response (Access Token / ID Token)
+Dashboards -> EC2 : Dashboards page
+EC2 -> ALB : Dashboards page
+ALB -> Administrators : Dashboards page
+@enduml
