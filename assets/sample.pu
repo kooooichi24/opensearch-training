@@ -12,8 +12,6 @@ participant Cognito
 Administrators -> ALB : https://$host/_dashboards
 ALB -> EC2 : Route to a target EC2 instance
 EC2 -> Dashboards : Proxy to https://$domain_endpoint/_dashboards
-Dashboards -> Cognito : authorization request
-Cognito -> Dashboards : authorization response
 Dashboards -> EC2 : Location: https://$cognito_host/login
 EC2 -> ALB : Replace response location header $cognito_host with $host. \n Location: https://$host/login
 ALB -> Administrators : Redirect to https://$host/login
@@ -21,6 +19,9 @@ ALB -> Administrators : Redirect to https://$host/login
 Administrators -> ALB : https://$host/login
 ALB -> EC2 : Route to a target EC2 instance
 EC2 -> Cognito : Proxy to https://$cognito_host/login
+note right
+  Login Endpoint
+end note
 Cognito -> EC2 : Login page
 EC2 -> ALB : Login page
 ALB -> Administrators : Login page
@@ -32,10 +33,13 @@ Cognito -> EC2 : Code with redirect_uri: https://$domain_endpoint/_dashboards
 EC2 -> ALB : Replace response location header $domain_endpoint with $host. \n Redirect to https://$host/_dashboards?code=xxx
 ALB -> Administrators : Code
 
-Administrators -> ALB : https://$host/_dashboards?code=xxx
+Administrators -> ALB : https://$host/_dashboards
 ALB -> EC2 : Route to a target EC2 instance
-EC2 -> Dashboards : Proxy to https://$domain_endpoint/_dashboards?code=xxx
+EC2 -> Dashboards : Proxy to https://$domain_endpoint/_dashboards
 Dashboards -> Cognito : Token Request
+note right
+  Token Endpoint
+end note
 Cognito -> Dashboards : Token Response (Access Token / ID Token)
 Dashboards -> EC2 : Dashboards page
 EC2 -> ALB : Dashboards page
