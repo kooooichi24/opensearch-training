@@ -54,19 +54,12 @@ Mappings:
   Env:
     poc1:
       OpenSearchInstanceType: t3.medium.search
-      DedicatedMasterEnabled: false
     dev:
       OpenSearchInstanceType: t3.medium.search
-      DedicatedMasterEnabled: false
     review:
-      OpenSearchInstanceType: r6g.large.search
-      DedicatedMasterEnabled: true
+      OpenSearchInstanceType: t3.medium.search
     prod:
-      OpenSearchInstanceType: r6g.large.search
-      DedicatedMasterEnabled: true
-
-Conditions:
-  DedicatedMasterEnabled: !Equals [!FindInMap [Env, !Ref EnvironmentName, DedicatedMasterEnabled], true]
+      OpenSearchInstanceType: m6g.large.search
 
 Resources:
   #####################################
@@ -690,9 +683,9 @@ Resources:
     Type: AWS::OpenSearchService::Domain
     Properties:
       ClusterConfig:
-        DedicatedMasterEnabled: !If [DedicatedMasterEnabled, true, false]
-        DedicatedMasterCount: !If [DedicatedMasterEnabled, 3, !Ref AWS::NoValue]
-        DedicatedMasterType: !If [DedicatedMasterEnabled, !FindInMap [Env, !Ref EnvironmentName, OpenSearchInstanceType], !Ref AWS::NoValue]
+        DedicatedMasterEnabled: true
+        DedicatedMasterCount: 3
+        DedicatedMasterType: !FindInMap [Env, !Ref EnvironmentName, OpenSearchInstanceType]
         InstanceCount: 2
         InstanceType: !FindInMap [Env, !Ref EnvironmentName, OpenSearchInstanceType]
         WarmEnabled: false
@@ -712,9 +705,9 @@ Resources:
       EngineVersion: "OpenSearch_2.3"
       EBSOptions:
         EBSEnabled: true
-        Iops: 3000 # minimum
-        Throughput: 125 # minimum
-        VolumeSize: 10 # minimum
+        Iops: 3000
+        Throughput: 125
+        VolumeSize: 150
         VolumeType: "gp3"
       EncryptionAtRestOptions:
         Enabled: true
