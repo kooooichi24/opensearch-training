@@ -50,6 +50,14 @@ Parameters:
     Type: String
     Default: arn:aws:acm:ap-northeast-1:744743450114:certificate/c38eec0d-82cf-4db6-908a-05df83b41b82
 
+  SlackChannelId:
+    Description: Please enter the Slack channel ID to send alerting message of the OpenSearch cluster
+    Type: String
+
+  SlackWorkspaceId:
+    Description: Please enter the Slack workspace ID to send alerting message of the OpenSearch cluster
+    Type: String
+
 Mappings:
   Env:
     poc1:
@@ -686,7 +694,7 @@ Resources:
         DedicatedMasterEnabled: true
         DedicatedMasterCount: 3
         DedicatedMasterType: !FindInMap [Env, !Ref EnvironmentName, OpenSearchInstanceType]
-        InstanceCount: 2
+        InstanceCount: 4
         InstanceType: !FindInMap [Env, !Ref EnvironmentName, OpenSearchInstanceType]
         WarmEnabled: false
         ZoneAwarenessEnabled: true
@@ -834,3 +842,509 @@ Resources:
             }
           ]
         }
+
+  # -----------------
+  # SNS Topic
+  # -----------------
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${ProjectName}-${EnvironmentName}-alert-topic"
+      FifoTopic: False
+      TopicName: !Sub "${ProjectName}-${EnvironmentName}-alert-topic"
+
+  # -----------------
+  # Chatbot
+  # -----------------
+  Chatbot:
+    Type: AWS::Chatbot::SlackChannelConfiguration
+    Properties:
+      ConfigurationName: !Sub "${ProjectName}-${EnvironmentName}-chatbot"
+      IamRoleArn: !GetAtt ChatbotRole.Arn
+      SlackChannelId: !Ref SlackChannelId
+      SlackWorkspaceId: !Ref SlackWorkspaceId
+      SnsTopicArns:
+        - !Ref SNSTopic
+      LoggingLevel: INFO
+
+  ChatbotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ProjectName}-${EnvironmentName}-chatbot-iam-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: chatbot.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
+
+  # -----------------
+  # CloudWatch Alarm - ClusterStatus.red
+  # -----------------
+  ClusterStatusRed:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "ClusterStatus.red >= 1"
+      AlarmDescription: "Slack when ClusterStatus.red >=1, 1 time within 1 minutes"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "ClusterStatus.red"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - ClusterStatus.yellow
+  # -----------------
+  ClusterStatusYellow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "ClusterStatus.yellow >= 1"
+      AlarmDescription: "Slack when ClusterStatus.yellow >=1, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "ClusterStatus.yellow"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - FreeStorageSpace
+  # -----------------
+  FreeStorageSpace:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "FreeStorageSpace <= 20480"
+      AlarmDescription: "Slack when FreeStorageSpace <= 20480, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Minimum
+      MetricName: "FreeStorageSpace"
+      ComparisonOperator: LessThanOrEqualToThreshold
+      Threshold: 20480
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - ClusterIndexWritesBlocked
+  # -----------------
+  ClusterIndexWritesBlocked:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "ClusterIndexWritesBlocked >= 1"
+      AlarmDescription: "Slack when ClusterIndexWritesBlocked >=1, 1 time within 5 minutes"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "ClusterIndexWritesBlocked"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 300
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - AutomatedSnapshotFailure
+  # -----------------
+  AutomatedSnapshotFailure:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "AutomatedSnapshotFailure >= 1"
+      AlarmDescription: "Slack when AutomatedSnapshotFailure >=1, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "AutomatedSnapshotFailure"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - CPUUtilization
+  # -----------------
+  CPUUtilization:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "CPUUtilization >= 80"
+      AlarmDescription: "Slack when CPUUtilization >=80, 3 time within 15 minutes"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "CPUUtilization"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 80
+      Period: 900
+      EvaluationPeriods: 3
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - JVMMemoryPressure
+  # -----------------
+  JVMMemoryPressure:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "JVMMemoryPressure >= 80 (old gen instance) / 95 (current gen instance)"
+      AlarmDescription: "Slack when JVMMemoryPressure >= 80 (old gen instance) / 95 (current gen instance), 3 time within 5 minutes"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "JVMMemoryPressure"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 95
+      Period: 300
+      EvaluationPeriods: 3
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - MasterCPUUtilization
+  # -----------------
+  MasterCPUUtilization:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "MasterCPUUtilization >= 50"
+      AlarmDescription: "Slack when MasterCPUUtilization >= 50, 3 time within 15 minutes"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "MasterCPUUtilization"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 50
+      Period: 900
+      EvaluationPeriods: 3
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - MasterJVMMemoryPressure
+  # -----------------
+  MasterJVMMemoryPressure:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "MasterJVMMemoryPressure >= 80 (old gen instance) / 95 (current gen instance)"
+      AlarmDescription: "Slack when MasterJVMMemoryPressure >= 80 (old gen instance) / 95 (current gen instance), 1 time within 15 minutes"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "MasterJVMMemoryPressure"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 95
+      Period: 900
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - KMSKeyError
+  # -----------------
+  KMSKeyError:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "KMSKeyError >= 1"
+      AlarmDescription: "Slack when KMSKeyError >= 1, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "KMSKeyError"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - KMSKeyInaccessible
+  # -----------------
+  KMSKeyInaccessible:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "KMSKeyInaccessible >= 1"
+      AlarmDescription: "Slack when KMSKeyInaccessible >= 1, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "KMSKeyInaccessible"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - Shards.active
+  # -----------------
+  ShardsActive:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "ShardsActive >= 30000"
+      AlarmDescription: "Slack when ShardsActive >= 30000, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "Shards.active"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 30000
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - 5xx alarms
+  # -----------------
+
+  # -----------------
+  # CloudWatch Alarm - MasterReachableFromNode
+  # -----------------
+  MasterReachableFromNode:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "MasterReachableFromNode < 1"
+      AlarmDescription: "Slack when MasterReachableFromNode < 1, 1 time within 1 day"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "MasterReachableFromNode"
+      ComparisonOperator: LessThanThreshold
+      Threshold: 1
+      Period: 86400
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - ThreadpoolWriteQueue
+  # -----------------
+  ThreadpoolWriteQueue:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "ThreadpoolWriteQueue average >= 100"
+      AlarmDescription: "Slack when average ThreadpoolWriteQueue >= 100, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Average
+      MetricName: "ThreadpoolWriteQueue"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 100
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - ThreadpoolSearchQueue
+  # -----------------
+  ThreadpoolSearchQueue500:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "ThreadpoolSearchQueue average >= 500"
+      AlarmDescription: "Slack when average ThreadpoolSearchQueue >= 500, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Average
+      MetricName: "ThreadpoolSearchQueue"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 500
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Alarm - ThreadpoolSearchQueue
+  # -----------------
+  ThreadpoolSearchQueue5000:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "ThreadpoolSearchQueue >= 5000"
+      AlarmDescription: "Slack when ThreadpoolSearchQueue >= 5000, 1 time within 1 minute"
+      # Account + cluster
+      Namespace: "AWS/ES"
+      Dimensions:
+        - Name: ClientId
+          Value: !Ref AWS::AccountId
+        - Name: DomainName
+          Value: !Ref OpenSearchServiceDomain
+      # Conditions
+      Statistic: Maximum
+      MetricName: "ThreadpoolSearchQueue"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 5000
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic

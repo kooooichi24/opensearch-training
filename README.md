@@ -39,6 +39,14 @@ Thresholds were taken from [this document](https://www.elastic.co/guide/en/elast
 
 [Turn on audit logs in OpenSearch Dashboards](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/audit-logs.html#audit-log-enabling-api:~:text=Step%202%3A%20Turn%20on%20audit%20logs%20in%20OpenSearch%20Dashboards)
 
+### AWS Chatbot
+
+1. Create AWS Chatbot Worksspace [here](https://us-east-2.console.aws.amazon.com/chatbot/home?region=us-east-1#/home)
+  ![chatbot-step-1](./assets/chatbot-step-1.jpg)
+  ![chatbot-step-2](./assets/chatbot-step-2.jpg)
+2. Copy the workspace ID of AWS Chatbot
+  ![chatbot-step-3](./assets/chatbot-step-3.jpg)
+
 ## Reference
 
 - [opensearchproject/opensearch](https://hub.docker.com/r/opensearchproject/opensearch)
