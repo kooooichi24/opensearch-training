@@ -53,10 +53,12 @@ Parameters:
   SlackChannelId:
     Description: Please enter the Slack channel ID to send alerting message of the OpenSearch cluster
     Type: String
+    Default: C049W9F5LHM
 
   SlackWorkspaceId:
     Description: Please enter the Slack workspace ID to send alerting message of the OpenSearch cluster
     Type: String
+    Default: TKL35HT3J
 
 Mappings:
   Env:
@@ -747,11 +749,11 @@ Resources:
       AccessPolicies:
         Version: "2012-10-17"
         Statement:
-          # - Effect: "Allow"
-          #   Principal:
-          #     AWS: "arn:aws:iam::744743450114:role/opensearch-training-dev-ap-northeast-1-lambdaRole"
-          #   Action: "es:ES*"
-          #   Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}-${EnvironmentName}/*"
+          - Effect: "Allow"
+            Principal:
+              AWS: "arn:aws:iam::744743450114:role/opensearch-training-dev-ap-northeast-1-lambdaRole"
+            Action: "es:ES*"
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}-${EnvironmentName}/*"
           - Effect: "Allow"
             Principal:
               AWS: !GetAtt IAMRoleForCognitoAuthenticated.Arn
@@ -880,6 +882,78 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
+
+  # -----------------
+  # CloudWatch Metrics Filter & Alarm - SlowLog
+  # -----------------
+  SearchSlowLogsFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties: 
+      FilterName: !Sub ${ProjectName}-${EnvironmentName}-search-slow-logs-filter
+      FilterPattern: WARN index.search.slowlog.query
+      LogGroupName: !Ref LogGroupForSearchLogs
+      MetricTransformations:
+        - MetricName: SearchSlowLogs
+          MetricNamespace: !Sub ${ProjectName}-${EnvironmentName}
+          MetricValue: "1"
+          DefaultValue: 0
+
+  SearchSlowLogsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "SearchSlowLogs >= 1"
+      AlarmDescription: "Slack when SearchSlowLogs >=1, 1 time within 1 minutes"
+      # Account + cluster
+      Namespace: !Sub ${ProjectName}-${EnvironmentName}
+      # Conditions
+      Statistic: Maximum
+      MetricName: SearchSlowLogs
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # -----------------
+  # CloudWatch Metrics Filter & Alarm - IndexLog
+  # -----------------
+  IndexSlowLogsFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties: 
+      FilterName: !Sub ${ProjectName}-${EnvironmentName}-index-slow-logs-filter
+      FilterPattern: WARN
+      LogGroupName: !Ref LogGroupForIndexLogs
+      MetricTransformations:
+        - MetricName: IndexSlowLogs
+          MetricNamespace: !Sub ${ProjectName}-${EnvironmentName}
+          MetricValue: "1"
+          DefaultValue: 0
+
+  IndexSlowLogsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      # Alarm name + description
+      AlarmName: "IndexSlowLogs >= 1"
+      AlarmDescription: "Slack when IndexSlowLogs >=1, 1 time within 1 minutes"
+      # Account + cluster
+      Namespace: !Sub ${ProjectName}-${EnvironmentName}
+      # Conditions
+      Statistic: Maximum
+      MetricName: IndexSlowLogs
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 60
+      EvaluationPeriods: 1
+      # Action
+      OKActions:
+        - !Ref SNSTopic
+      AlarmActions:
+        - !Ref SNSTopic
 
   # -----------------
   # CloudWatch Alarm - ClusterStatus.red
