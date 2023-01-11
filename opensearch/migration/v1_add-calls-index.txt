@@ -18,10 +18,12 @@ PUT calls
         "type": "text"
       },
       "phone_number": {
-        "type": "keyword"
+        "type": "keyword",
+        "null_value": "null"
       },
       "participants": {
-        "type": "text"
+        "type": "text",
+        "null_value": "null"
       }
     }
   },
