@@ -32,9 +32,11 @@ const setup = async (): Promise<void> => {
       },
       phone_number: {
         type: "keyword",
+        null_value: "NONE",
       },
       participants: {
-        type: "text",
+        type: "keyword",
+        null_value: "NONE",
       },
     },
   };

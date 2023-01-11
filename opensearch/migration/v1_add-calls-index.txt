@@ -19,11 +19,11 @@ PUT calls
       },
       "phone_number": {
         "type": "keyword",
-        "null_value": "null"
+        "null_value": "NONE"
       },
       "participants": {
-        "type": "text",
-        "null_value": "null"
+        "type": "keyword",
+        "null_value": "NONE"
       }
     }
   },
