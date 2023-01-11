@@ -56,7 +56,7 @@ export class OpenSearchClient implements IOpenSearchClient {
             return credentialsProvider();
           },
         }),
-        node: "https://vpc-opensearch-training-v6hkstq4xadg37eyrhrfaw4kui.ap-northeast-1.es.amazonaws.com",
+        node: "https://vpc-opensearch-test-dev-ky3fwqursjotzfguccpn53u3pa.ap-northeast-1.es.amazonaws.com",
       });
     }
   }
@@ -99,6 +99,13 @@ export class OpenSearchClient implements IOpenSearchClient {
     console.log("indicesCreate called");
 
     await this.client.indices.create(params, options);
+  }
+
+  async exists(params: RequestParams.IndicesExists): Promise<boolean> {
+    console.log("exists called");
+
+    const result = await this.client.indices.exists(params);
+    return result.body;
   }
 
   async indicesDelete(

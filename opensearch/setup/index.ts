@@ -4,10 +4,16 @@ const setup = async (): Promise<void> => {
   const INDEX_NAME = "calls";
   const openSearchClient = new OpenSearchClient();
 
-  // remove index
-  await openSearchClient.indicesDelete({
+  // delete index if exists
+  const indexExists = await openSearchClient.exists({
     index: INDEX_NAME,
+    local: true,
   });
+  if (indexExists) {
+    await openSearchClient.indicesDelete({
+      index: INDEX_NAME,
+    });
+  }
 
   // create index
   const mappings = {
