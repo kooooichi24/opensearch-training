@@ -23,6 +23,7 @@ export interface IOpenSearchClient {
   ): Promise<void>;
 
   // for local setup
+  exists(params: RequestParams.IndicesExists): Promise<boolean>;
   indicesCreate<TRequestBody extends RequestBody = Record<string, any>>(
     params?: RequestParams.IndicesCreate<TRequestBody>,
     options?: TransportRequestOptions
